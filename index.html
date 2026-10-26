@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>表情工坊 · GIF Studio</title>
+<meta name="description" content="拖入视频自动转 GIF，拖入图片自动压缩。精致、丝滑的表情包生成器。" />
+<meta name="theme-color" content="#0a84ff" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png" />
+<link rel="icon" href="icons/favicon.ico" sizes="any" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="表情工坊" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- ===================== 顶栏 ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" width="22" height="22">
+          <defs>
+            <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#0a84ff"/>
+              <stop offset="1" stop-color="#5e5ce6"/>
+            </linearGradient>
+          </defs>
+          <rect x="1" y="1" width="30" height="30" rx="8.5" fill="url(#lg)"/>
+          <path d="M12 10.5v11l9-5.5z" fill="#fff"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">表情工坊</span>
+        <span class="brand-sub">GIF Studio</span>
+      </div>
+    </div>
+
+    <nav class="mode-switch" role="tablist" aria-label="模式">
+      <button class="seg is-active" data-mode="video" role="tab" aria-selected="true">视频转 GIF</button>
+      <button class="seg" data-mode="image" role="tab" aria-selected="false">图片缩放</button>
+    </nav>
+
+    <div class="topbar-actions">
+      <button class="icon-btn" id="themeToggle" aria-label="切换深色模式" title="切换深浅色">
+        <svg class="i-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <svg class="i-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================== 工作区 ===================== -->
+  <main class="workspace">
+
+    <!-- ---------- 左侧：舞台 ---------- -->
+    <section class="stage-panel">
+      <div class="stage" id="stage">
+        <canvas id="preview" class="preview" aria-label="预览"></canvas>
+        <video id="video" class="video-src" playsinline muted loop preload="auto"></video>
+
+        <!-- 空状态 -->
+        <div class="dropzone" id="dropzone">
+          <div class="dz-icon">
+            <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">
+              <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="dz-title">拖入视频或图片</div>
+          <div class="dz-sub" id="dzSub">视频自动转成 GIF · 图片自动压缩</div>
+          <button class="btn btn-primary" id="pickFile">选择文件</button>
+          <input type="file" id="fileInput" hidden multiple
+                 accept="video/*,image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif" />
+        </div>
+
+        <!-- 拖拽悬停遮罩 -->
+        <div class="drag-overlay" id="dragOverlay" aria-hidden="true">
+          <div class="drag-card">
+            <div class="drag-card-icon">
+              <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+                <path d="M12 4v12m0 0l-4.5-4.5M12 16l4.5-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 19h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="drag-card-text">松开以导入</div>
+          </div>
+        </div>
+
+        <!-- 转码进度 -->
+        <div class="progress-overlay" id="progressOverlay" hidden>
+          <div class="progress-card">
+            <svg class="ring" id="ring" viewBox="0 0 64 64" width="68" height="68" aria-hidden="true">
+              <circle class="ring-track" cx="32" cy="32" r="28"/>
+              <circle class="ring-fill" id="ringFill" cx="32" cy="32" r="28"/>
+            </svg>
+            <div class="progress-label" id="progressLabel">正在转码…</div>
+            <div class="progress-sub" id="progressSub"></div>
+            <button class="btn btn-ghost" id="cancelBtn">取消</button>
+          </div>
+        </div>
+
+        <!-- 视频播放控制 -->
+        <div class="video-controls" id="videoControls" hidden>
+          <button class="play-btn" id="playBtn" aria-label="播放/暂停">
+            <svg class="i-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>
+            <svg class="i-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M7 5h3.4v14H7zM13.6 5H17v14h-3.4z" fill="currentColor"/></svg>
+          </button>
+          <span class="time" id="timeLabel">0:00 / 0:00</span>
+        </div>
+      </div>
+
+      <!-- 输出条 -->
+      <div class="output-bar" id="outputBar" hidden>
+        <div class="output-thumb" id="outputThumb"></div>
+        <div class="output-meta">
+          <div class="output-title" id="outputTitle">—</div>
+          <div class="output-stats" id="outputStats">—</div>
+        </div>
+        <div class="output-actions">
+          <button class="btn btn-secondary" id="copyBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M5 15V5a2 2 0 0 1 2-2h10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+            复制
+          </button>
+          <button class="btn btn-primary" id="downloadBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+            下载
+          </button>
+        </div>
+        <div class="output-done" id="outputDone" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <!-- 历史 -->
+      <div class="history" id="history" hidden></div>
+    </section>
+
+    <!-- ---------- 右侧：控制面板 ---------- -->
+    <aside class="controls-panel">
+      <div class="controls-scroll" id="controlsScroll">
+
+        <section class="control-group" data-scope="both">
+          <header class="group-head">
+            <h2>尺寸</h2>
+            <span class="group-badge" id="sizeBadge">480 × 480</span>
+          </header>
+          <div class="chip-row" id="sizeChips"></div>
+          <div class="fit-row">
+            <div class="segmented" role="tablist" aria-label="适配方式">
+              <button class="seg is-active" data-fit="contain">完整</button>
+              <button class="seg" data-fit="cover">裁剪</button>
+              <button class="seg" data-fit="stretch">拉伸</button>
+            </div>
+          </div>
+          <div class="dim-row" id="dimRow" hidden>
+            <label class="dim-field"><span>宽</span><input type="number" id="dimW" min="8" max="2000" step="1" /></label>
+            <span class="dim-x">×</span>
+            <label class="dim-field"><span>高</span><input type="number" id="dimH" min="8" max="2000" step="1" /></label>
+            <button class="icon-btn small" id="swapDims" aria-label="交换宽高" title="交换宽高">
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M7 8h13m0 0l-3.5-3.5M20 8l-3.5 3.5M17 16H4m0 0l3.5-3.5M4 16l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="preset-save-row" id="presetSaveRow" hidden>
+            <input type="text" id="presetName" placeholder="预设名称（如 300×300）" maxlength="14" autocomplete="off" />
+            <button class="btn btn-secondary small" id="presetSaveConfirm">保存</button>
+            <button class="btn btn-ghost small" id="presetSaveCancel">取消</button>
+          </div>
+        </section>
+
+        <section class="control-group" data-scope="video">
+          <header class="group-head"><h2>画面</h2></header>
+
+          <div class="field">
+            <div class="field-label"><span>帧率</span><span class="value" id="fpsVal">10 fps</span></div>
+            <input type="range" id="fps" min="4" max="30" step="1" value="10" />
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span>颜色</span><span class="value" id="colorsVal">128</span></div>
+            <div class="chip-row" id="colorChips"></div>
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span>裁剪</span><span class="value" id="trimVal">全部</span></div>
+            <div class="trim-track" id="trimTrack"><div class="trim-fill" id="trimFill"></div></div>
+            <input type="range" id="trimStart" min="0" max="1" step="0.01" value="0" class="range-dual" aria-label="开始时间" />
+            <input type="range" id="trimEnd" min="0" max="1" step="0.01" value="1" class="range-dual" aria-label="结束时间" />
+            <div class="trim-hints"><span id="trimStartHint">0.0s</span><span id="trimEndHint">0.0s</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span>速度</span><span class="value" id="speedVal">1×</span></div>
+            <input type="range" id="speed" min="0.25" max="2" step="0.05" value="1" />
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <div class="field-label"><span>循环</span></div>
+              <div class="chip-row" id="loopChips"></div>
+            </div>
+          </div>
+
+          <label class="switch-row">
+            <span>倒放</span>
+            <input type="checkbox" id="reverse" class="switch" />
+            <span class="switch-ui" aria-hidden="true"></span>
+          </label>
+        </section>
+
+        <section class="control-group" data-scope="both">
+          <header class="group-head"><h2>文字</h2></header>
+
+          <div class="field">
+            <label class="text-input">
+              <span class="text-input-tag">顶部</span>
+              <input type="text" id="textTop" maxlength="60" placeholder="输入顶部文字" autocomplete="off" />
+            </label>
+            <label class="text-input">
+              <span class="text-input-tag">底部</span>
+              <input type="text" id="textBottom" maxlength="60" placeholder="输入底部文字" autocomplete="off" />
+            </label>
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span>字号</span><span class="value" id="textSizeVal">32</span></div>
+            <input type="range" id="textSize" min="12" max="72" step="1" value="32" />
+          </div>
+
+          <div class="field">
+            <div class="field-label"><span>描边</span><span class="value" id="textStrokeVal">3</span></div>
+            <input type="range" id="textStroke" min="0" max="8" step="0.5" value="3" />
+          </div>
+
+          <div class="field-row">
+            <div class="color-field">
+              <span class="color-label">文字色</span>
+              <label class="color-swatch">
+                <input type="color" id="textColor" value="#ffffff" />
+              </label>
+            </div>
+            <div class="color-field">
+              <span class="color-label">描边色</span>
+              <label class="color-swatch">
+                <input type="color" id="textStrokeColor" value="#000000" />
+              </label>
+            </div>
+          </div>
+
+          <label class="switch-row">
+            <span>英文大写</span>
+            <input type="checkbox" id="uppercase" class="switch" checked />
+            <span class="switch-ui" aria-hidden="true"></span>
+          </label>
+        </section>
+
+        <section class="control-group" data-scope="both">
+          <header class="group-head"><h2>滤镜</h2></header>
+          <div class="chip-row" id="filterChips"></div>
+          <div class="field" id="filterStrengthField" hidden>
+            <div class="field-label"><span>强度</span><span class="value" id="filterStrengthVal">60%</span></div>
+            <input type="range" id="filterStrength" min="0" max="100" step="1" value="60" />
+          </div>
+        </section>
+
+        <section class="control-group" data-scope="image">
+          <header class="group-head"><h2>输出格式</h2></header>
+          <div class="chip-row" id="formatChips"></div>
+          <div class="field" id="qualityField" hidden>
+            <div class="field-label"><span>质量</span><span class="value" id="qualityVal">90%</span></div>
+            <input type="range" id="quality" min="0.5" max="1" step="0.01" value="0.9" />
+          </div>
+        </section>
+
+        <button class="btn btn-primary btn-generate" id="generateBtn">
+          <span class="gen-label">生成 GIF</span>
+          <span class="gen-spinner" aria-hidden="true"></span>
+        </button>
+        <p class="foot-note" id="footNote"></p>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- gifenc（CommonJS 构建，注入 exports 后全局可用） -->
+<script>
+  var module = { exports: {} };
+  var exports = module.exports;
+</script>
+<script src="gifenc.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

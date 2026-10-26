@@ -1,0 +1,12 @@
+# 临时 / 生成文件
+_cp*/
+_dom*
+_shot*
+_smoke*
+_check*
+*.pyc
+__pycache__/
+
+# 系统
+.DS_Store
+Thumbs.db
